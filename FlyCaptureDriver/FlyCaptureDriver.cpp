@@ -30,23 +30,20 @@ int FlyCaptureDriverInit(int argc, char** argv)
 	}
 	else
 	{
-		cout << "Usage:  FlyCaptureDriver.exe [Path to save pics] [Interval(ms) to save pics] [Exposure(ms)]" << endl;
+		cout << "Usage:  FlyCaptureDriver.exe [Path to save pics] [Interval(ms) to save pics] [flip?0/1] [Exposure(ms)]" << endl;
 		return 1;
 	}
-	cout << "Save files to: " << dconfig.s_dst_path << endl;
 	if (argc > 2)
 	{
 		dconfig.i_interval = atoi(argv[2]);
-		cout << "Save pics every " << dconfig.i_interval << "ms." << endl;
-	}
-	else
-	{
-		cout << "Use default interval." << endl;
 	}
 	if (argc > 3)
 	{
-		dconfig.d_exposure = atof(argv[3]);
-		cout << "Exposure fixed" << dconfig.d_exposure << "ms." << endl;
+		dconfig.b_isFlipped = atoi(argv[3]) > 0;
+	}
+	if (argc > 4)
+	{
+		dconfig.d_exposure = atof(argv[4]);
 	}
 
 	//打印配置信息
@@ -489,9 +486,10 @@ int FlyCaptureDriverRun(std::vector<FlyCapture2::PGRGuid*>& guid)
 			m_dispFrame[i] = cv::Mat(size, CV_8UC3);
 
 			resize(m_rawFrame[i], m_dispFrame[i], size);
-#ifdef FLY_CAPTURE_CONFIG_FLIP_PIC
-			flip(m_dispFrame[i], m_dispFrame[i], -1);
-#endif
+			if (dconfig.b_isFlipped)
+			{
+				flip(m_dispFrame[i], m_dispFrame[i], -1);
+			}
 
 			//			Canny(m_dispFrame[i],m_cannyMat[i],80,250);
 			cv::Mat m_dispFrameROI;// = m_dispFrame[i];
@@ -560,7 +558,7 @@ int FlyCaptureDriverRun(std::vector<FlyCapture2::PGRGuid*>& guid)
 				float uOut = p_cameraProp[i].absValue * (pRatio *(exp(errExp) - 1.0) + 1.0);//比例控制器！
 				c_cam[i].GetProperty(&p_cameraProp[i]);
 				//cout << curRate <<" "<< p_cameraProp.absValue << " ";
-				ss << "Shutter: " << setw(4) << p_cameraProp[i].absValue << "ms. Buffer: " << setw(4)<< FrameBuff.size();//同时输出缓存的数量
+				ss << "Shutter: " << setw(4) << p_cameraProp[i].absValue << "ms. Buffer: " << setw(4) << FrameBuff.size();//同时输出缓存的数量
 
 				p_cameraProp[i].autoManualMode = false;
 				p_cameraProp[i].absControl = true;
@@ -582,7 +580,7 @@ int FlyCaptureDriverRun(std::vector<FlyCapture2::PGRGuid*>& guid)
 #endif 
 
 			}
-			
+
 			if (b_isCapturing)
 			{
 				ss << " " << dconfig.i_interval << "ms. #" << i_capCount;
@@ -763,8 +761,13 @@ int FlyCaptureDriverFin()
 void SaveSingleFrame(FrameToSave& pts)
 {
 
-	string s_framePath = dconfig.s_dst_path + '\\' + pts.GetFileName() + ".jpg";
-	if (cv::imwrite(s_framePath, pts.m_frame, compression_params))
+	string s_framePath = dconfig.s_dst_path + '\\' + pts.GetFileName(dconfig.b_isFlipped) + ".jpg";
+	cv::Mat tmp = pts.m_frame.clone();
+	if (dconfig.b_isFlipped)
+	{
+		flip(tmp, tmp, -1);
+	}
+	if (cv::imwrite(s_framePath, tmp, compression_params))
 	{
 		cout << "Saved as " << s_framePath << endl;
 	}
@@ -772,23 +775,6 @@ void SaveSingleFrame(FrameToSave& pts)
 	{
 		cout << "[ERROR] Save " << s_framePath << " failed." << endl;
 	}
-
-	/*
-#ifdef FLY_CAPTURE_CONFIG_XML
-	//写XML文件
-	cv::FileStorage prop;
-	stringstream ss;
-	ss << systemTime2Path(pts.fileTime) << "V" << pts.seq;
-	#ifdef FLIP
-	ss << "F";
-	#endif
-	ss << ".xml";
-
-	prop.open(ss.str(), CV_STORAGE_WRITE, "GB2312");//或者用prop.WRITE
-	prop << "SHUTTER" << pts.shutter;
-	prop.release();
-	#endif
-	*/
 }
 
 //保存图片线程

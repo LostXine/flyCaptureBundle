@@ -7,11 +7,8 @@
 //<time.h>
 
 //开关宏
-//倒着安装摄像头时使用
-//#define FLY_CAPTURE_CONFIG_FLIP_PIC
 //写XML信息
 #define FLY_CAPTURE_CONFIG_XML
-
 //对焦辅助
 #define FLY_CAPTURE_CONFIG_FOCUS_ASSIST
 //使用触发器/帧率控制默认开启)
@@ -21,12 +18,11 @@
 
 //时间转换
 std::string Systemtime2String(SYSTEMTIME& sys);
-SYSTEMTIME Longtime2Systemtime(long long int& time);
 
 //比较两个时间差 返回毫秒
 int CompareSystemTime(SYSTEMTIME& after, SYSTEMTIME& previous);
 //快速推进一定毫秒数（未必安全）
-SYSTEMTIME SystemtimeForwardMS(SYSTEMTIME& st,int ms);
+SYSTEMTIME SystemtimeForwardMS(SYSTEMTIME& st, int ms);
 //绘制直方图
 void DrawHist(cv::Mat& img, cv::Mat hist);
 //检查ROI
@@ -43,12 +39,15 @@ struct DriverConfig
 	double i_interval;
 	//固定曝光值
 	double d_exposure;
+	//是否反转图像
+	bool b_isFlipped;
 	//默认初始化参数
 	DriverConfig()
 	{
 		s_dst_path = "";
 		i_interval = 50;
 		d_exposure = -1;
+		b_isFlipped = false;
 	};
 	//打印配置
 	void print()
@@ -56,8 +55,18 @@ struct DriverConfig
 		std::cout << "Local Config:\n"
 			<< " --dst_path : " << s_dst_path << "\n"
 			<< " --interval(ms) : " << i_interval << "\n"
-			<< " --exptosure(ms) : " << d_exposure << "\n"
-			<< std::endl;
+			<< " --flipped : " << (b_isFlipped ? "yes" : "no") << "\n"
+			<< " --exptosure(ms) : ";
+		if (d_exposure < 0)
+		{
+			std::cout << "auto";
+		}
+		else
+		{
+			std::cout << d_exposure;
+		}
+
+		std::cout << "\n" << std::endl;
 	}
 };
 
@@ -80,12 +89,12 @@ struct FrameToSave
 	}
 
 	//获得文件名
-	std::string GetFileName()
-	{		
+	std::string GetFileName(bool isFliped = false)
+	{
 		std::string time = Systemtime2String(sys_timeStamp);
 		char camera[16];
-		sprintf_s(camera, "C%02d", i_camSeq);
-		return time + std::string(camera);
+		sprintf_s(camera, "%02d", i_camSeq);
+		return time + (isFliped ? 'F' : 'C') + std::string(camera);
 	}
 };
 #endif
